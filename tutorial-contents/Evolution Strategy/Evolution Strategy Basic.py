@@ -1,3 +1,4 @@
+# -*-coding:utf-8-*-
 """
 The Evolution Strategy can be summarized as the following term:
 {mu/rho +, lambda}-ES
@@ -16,46 +17,40 @@ N_GENERATIONS = 200
 POP_SIZE = 100           # population size
 N_KID = 50               # n kids per generation
 
-
 def F(x): return np.sin(10*x)*x + np.cos(2*x)*x     # to find the maximum of this function
-
 
 # find non-zero fitness for selection
 def get_fitness(pred): return pred.flatten()
-
 
 def make_kid(pop, n_kid):
     # generate empty kid holder
     kids = {'DNA': np.empty((n_kid, DNA_SIZE))}
     kids['mut_strength'] = np.empty_like(kids['DNA'])
     for kv, ks in zip(kids['DNA'], kids['mut_strength']):
-        # crossover (roughly half p1 and half p2)
+        # 选两个元素作为parents，然后随机挑一个准备变异
         p1, p2 = np.random.choice(np.arange(POP_SIZE), size=2, replace=False)
-        cp = np.random.randint(0, 2, DNA_SIZE, dtype=np.bool)  # crossover points
-        kv[cp] = pop['DNA'][p1, cp]
+        cp = np.random.randint(0, 2, DNA_SIZE, dtype=np.bool)
+        kv[cp] = pop['DNA'][p1, cp] # 布尔索引中的False表示在对应位置的元素不会被选中。
         kv[~cp] = pop['DNA'][p2, ~cp]
         ks[cp] = pop['mut_strength'][p1, cp]
         ks[~cp] = pop['mut_strength'][p2, ~cp]
 
         # mutate (change DNA based on normal distribution)
-        ks[:] = np.maximum(ks + (np.random.rand(*ks.shape)-0.5), 0.)    # must > 0
-        kv += ks * np.random.randn(*kv.shape)
+        ks[:] = np.maximum(ks + (np.random.rand(*ks.shape)-0.5), 0.) # must > 0 变异强度也要变异
+        kv += ks * np.random.randn(*kv.shape) # DNA根据变异强度再变异
         kv[:] = np.clip(kv, *DNA_BOUND)    # clip the mutated value
     return kids
-
 
 def kill_bad(pop, kids):
     # put pop and kids together
     for key in ['DNA', 'mut_strength']:
         pop[key] = np.vstack((pop[key], kids[key]))
-
     fitness = get_fitness(F(pop['DNA']))            # calculate global fitness
     idx = np.arange(pop['DNA'].shape[0])
-    good_idx = idx[fitness.argsort()][-POP_SIZE:]   # selected by fitness ranking (not value)
+    good_idx = idx[fitness.argsort()][-POP_SIZE:]   # selected by fitness ranking (not value) 100个population+50个child，最终保留100个进入下一轮
     for key in ['DNA', 'mut_strength']:
         pop[key] = pop[key][good_idx]
     return pop
-
 
 pop = dict(DNA=5 * np.random.rand(1, DNA_SIZE).repeat(POP_SIZE, axis=0),   # initialize the pop DNA values
            mut_strength=np.random.rand(POP_SIZE, DNA_SIZE))                # initialize the pop mutation strength values
@@ -63,7 +58,6 @@ pop = dict(DNA=5 * np.random.rand(1, DNA_SIZE).repeat(POP_SIZE, axis=0),   # ini
 plt.ion()       # something about plotting
 x = np.linspace(*DNA_BOUND, 200)
 plt.plot(x, F(x))
-
 for _ in range(N_GENERATIONS):
     # something about plotting
     if 'sca' in globals(): sca.remove()
@@ -72,5 +66,4 @@ for _ in range(N_GENERATIONS):
     # ES part
     kids = make_kid(pop, N_KID)
     pop = kill_bad(pop, kids)   # keep some good parent for elitism
-
 plt.ioff(); plt.show()

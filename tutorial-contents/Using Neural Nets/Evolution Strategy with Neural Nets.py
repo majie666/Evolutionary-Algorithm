@@ -6,7 +6,7 @@ Details can be found in : https://arxiv.org/abs/1703.03864
 Visit more on my tutorial site: https://mofanpy.com/tutorials/
 """
 import numpy as np
-import gym
+import gym # 0.26.2
 import multiprocessing as mp
 import time
 
@@ -15,14 +15,15 @@ N_GENERATION = 5000         # training step
 LR = .05                    # learning rate
 SIGMA = .05                 # mutation strength or step size
 N_CORE = mp.cpu_count()-1
+print("N_CORE:",N_CORE)
 CONFIG = [
     dict(game="CartPole-v0",
          n_feature=4, n_action=2, continuous_a=[False], ep_max_step=700, eval_threshold=500),
     dict(game="MountainCar-v0",
          n_feature=2, n_action=3, continuous_a=[False], ep_max_step=200, eval_threshold=-120),
-    dict(game="Pendulum-v0",
+    dict(game="Pendulum-v1",
          n_feature=3, n_action=1, continuous_a=[True, 2.], ep_max_step=200, eval_threshold=-180)
-][2]    # choose your game
+][0]    # choose your game
 
 
 def sign(k_id): return -1. if k_id % 2 == 0 else 1.  # mirrored sampling
@@ -56,13 +57,18 @@ def get_reward(shapes, params, env, ep_max_step, continuous_a, seed_and_id=None,
         params += sign(k_id) * SIGMA * np.random.randn(params.size)
     p = params_reshape(shapes, params)
     # run episode
-    s = env.reset()
+    # mowang add4
+    # s = env.reset()
+    s = env.reset()[0]
     ep_r = 0.
     for step in range(ep_max_step):
         a = get_action(p, s, continuous_a)
-        s, r, done, _ = env.step(a)
+        # mowang add2
+        # s, r, done, _ = env.step(a)
+        s, r, done,done2, _ = env.step(a)
         # mountain car's reward can be tricky
-        if env.spec._env_name == 'MountainCar' and s[0] > -0.1: r = 0.
+        # mowang add5
+        if env.spec.id == 'MountainCar' and s[0] > -0.1: r = 0.
         ep_r += r
         if done: break
     return ep_r
@@ -136,11 +142,16 @@ if __name__ == "__main__":
 
     # test
     print("\nTESTING....")
+    env = gym.make(CONFIG['game'], render_mode="human").unwrapped # human代表对人可视化，但train时多进程，不支持
     p = params_reshape(net_shapes, net_params)
-    while True:
-        s = env.reset()
-        for _ in range(CONFIG['ep_max_step']):
-            env.render()
-            a = get_action(p, s, CONFIG['continuous_a'])
-            s, _, done, _ = env.step(a)
-            if done: break
+    # while True:
+    # mowang add1
+    # s = env.reset()
+    s = env.reset()[0]
+    for _ in range(CONFIG['ep_max_step']):
+        env.render() # 可视化当前环境状态
+        a = get_action(p, s, CONFIG['continuous_a'])
+        # mowang add3
+        # s, _, done, _ = env.step(a)
+        s, _, done,done2, _ = env.step(a)
+        if done: break
